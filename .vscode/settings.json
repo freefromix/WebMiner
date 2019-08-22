@@ -1,0 +1,6 @@
+{
+    "python.linting.pylintEnabled": true,
+    "python.linting.flake8Enabled": false,
+    "python.linting.enabled": true,
+    "python.pythonPath": "/home/julien/miniconda3/envs/tf2/bin/python"
+}
