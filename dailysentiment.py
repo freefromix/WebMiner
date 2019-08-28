@@ -1,17 +1,22 @@
+import sqlite3
 import requests
 import pandas as pd
 from datetime import date
-from datetime import datetime
-from datetime import timedelta
 import re
 import os
-from dbLite import DbLite
 from bs4 import BeautifulSoup
-
+import pandas as pd
+from datetime import datetime
+from datetime import timedelta
 
 class DailySentiment:
 
-    def __init__(self):
+    def __init__(self, db):
+        self.startDate = date(2019, 8, 20)
+        self.db=db
+        self.conn = sqlite3.connect(db)
+        self.cur = self.conn.cursor()
+
         page = requests.get("http://www.tag618.com/services")
         soup = BeautifulSoup(page.content, 'html.parser')
         self.dailyDate = self._scrapDailyDate(soup)
@@ -20,7 +25,7 @@ class DailySentiment:
         columnToAdd = [self.dailyDate] * sLength
         dailySentimentTmp['date'] = pd.Series(columnToAdd)
         self.dailySentiment = dailySentimentTmp
- 
+
     def _scrapDailyDate(self, soup):
         dateSpanTag = soup.find('span', attrs={'style': 'font-size: 14px;'})
         text = dateSpanTag.find('b').text
@@ -53,24 +58,36 @@ class DailySentiment:
         toConvert[cols] = toConvert[cols].apply(pd.to_numeric, errors='coerce')
         return toConvert
 
+    def readPandasFromDB(self, table):
+        table = pd.read_sql_query("select * from "+table+";", self.conn)
+        return table
+
+    def writePandasToDB(self, table, dataFrame, create=False):
+        if create == True:
+            dataFrame.to_sql(table, con=self.conn,
+                             if_exists='replace', index=False)
+        else:
+            sameDateRows = pd.read_sql_query(
+                "select * from "+table+" WHERE date='"+dataFrame['date'][0].strftime('%Y-%m-%d')+"';", con=self.conn)
+
+            if sameDateRows.empty:
+                print("Writing new rows to database")
+                dataFrame.to_sql(table, con=self.conn,
+                                 if_exists='append', index=False)
+            else:
+                print("Rows already exist in database")
+
+    def getDatesFromBegining(self, table, startDate):
+        dt = datetime.combine(startDate, datetime.min.time())
+        for i in range(100):
+            dt += timedelta(days=1)
+            print(dt.date())
+
     def getDailySentiment(self):
         return self.dailySentiment
 
     def getDailyDate(self):
         return self.dailyDate
 
-    def getDatesFromBegining(self):
-        mydate = date(2003,2,28)
-        dt = datetime.combine(mydate, datetime.min.time())
-        print(type(dt))
-        for i in range(5):
-            dt += timedelta(days=1)
-    
-
-dailys = DailySentiment()
-db = DbLite("db"+os.sep+"dailySentiment.db")
-db.writePandasToDB('dailySentiment', dailys.getDailySentiment())
-fullTable = db.readPandasFromDB('dailySentiment')
-print(fullTable)
-
-
+    def getStartDate(self):
+        return self.startDate

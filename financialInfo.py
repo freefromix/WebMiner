@@ -1,55 +1,96 @@
-import pandas as pd
-import yfinance as yf
-import sqlite3
+from yahoofinancials import YahooFinancials
 import os
+from tinydb import TinyDB, Query
+import json
 
-import requests as _requests
-import numpy as np
 
-class CompanyYf:
+class CompanyFinance:
 
     def __init__(self, ticker):
         self.ticker = ticker
 
-    def readFromDatabase(self):
-        table = self.ticker.replace(".", "_")
-        conn = sqlite3.connect("db"+os.sep+"balanceSheet.db")
-        table = pd.read_sql_query("select * from "+table+";", conn)
-        return table
+    def writeToTinyDb(self, tableName, newData):
+        db=TinyDB('db/'+self.ticker+'.json')
+        table=db.table(tableName)
 
-    def writeToDatabase(self):
-        table = self.ticker.replace(".", "_")
-        conn = sqlite3.connect("db"+os.sep+"balanceSheet.db")
-        self.balance_sheet.to_sql(table, con=conn, if_exists='replace', index_label='id')
+        for dataRecord in newData:
+            dataDate=list(dataRecord.keys())[0]
+            result=table.search(Query()[dataDate])
 
-    def get_yf_data(self):
-        companyData = yf.Ticker(self.ticker)
-        self.balance_sheet = companyData.get_balance_sheet()
-        
-#        self.cashflow = companyData.get_cashflow()
-#        self.income_statement = companyData.get_financials()
-#        self.dividends = companyData.get_dividends()
-#        self.actions = companyData.get_actions()
-#        self.splits = companyData.get_splits()
-#        self.history = companyData.history()
-#        self.info = companyData.info
+            if result == []:
+                print(dataDate + ' record does not exist into database. Writing it!')
+                table.insert(dataRecord)
+            else:
+                print(dataDate + ' exist into database')
 
-    def get_fundamentals(self, kind, proxy=None):
-        # setup proxy in requests format
-        if proxy is not None:
-            if isinstance(proxy, dict) and "https" in proxy:
-                proxy = proxy["https"]
-            proxy = {"https": proxy}
-        url = '%s/%s/%s' % ('https://finance.yahoo.com/quote', self.ticker, kind)
-        data = pd.read_html(_requests.get(url=url, proxies=proxy).text)[0]
-        print(_requests.get(url=url, proxies=proxy).text)
-        data.columns = [''] + list(data[:1].values[0][1:])
-        data.set_index('', inplace=True)
-        for col in data.columns:
-            data[col] = np.where(data[col] == '-', np.nan, data[col])
-        idx = data[data[data.columns[0]] == data[data.columns[1]]].index
-        data.loc[idx] = '-'
-        return data[1:]
+    def readFromTinyDb(self):
+        db=TinyDB('db/'+self.ticker+'.json')
+        return db.all()
 
-testit = CompanyYf("CVV.V")
-testit.get_fundamentals('balance-sheet')
+    def get_balanceSheet(self):
+        companyData=YahooFinancials(self.ticker)
+        stmts=companyData.get_financial_stmts('annual', 'balance')
+        stmtsValues=stmts[list(stmts.keys())[0]][self.ticker]
+        tableName=list(stmts.keys())[0]
+        return (stmtsValues[::-1], tableName)
+
+    def get_balanceSheetQ(self):
+        companyData=YahooFinancials(self.ticker)
+        stmts=companyData.get_financial_stmts('quarterly', 'balance')
+        stmtsValues=stmts[list(stmts.keys())[0]][self.ticker]
+        tableName=list(stmts.keys())[0]
+        return (stmtsValues[::-1], tableName)
+
+    def get_incomeStatement(self):
+        companyData=YahooFinancials(self.ticker)
+        stmts=companyData.get_financial_stmts('annual', 'income')
+        stmtsValues=stmts[list(stmts.keys())[0]][self.ticker]
+        tableName=list(stmts.keys())[0]
+        return (stmtsValues[::-1], tableName)
+
+    def get_incomeStatementQ(self):
+        companyData=YahooFinancials(self.ticker)
+        stmts=companyData.get_financial_stmts('quarterly', 'income')
+        stmtsValues=stmts[list(stmts.keys())[0]][self.ticker]
+        tableName=list(stmts.keys())[0]
+        return (stmtsValues[::-1], tableName)
+
+    def get_cashFlow(self):
+        companyData=YahooFinancials(self.ticker)
+        stmts=companyData.get_financial_stmts('annual', 'cash')
+        stmtsValues=stmts[list(stmts.keys())[0]][self.ticker]
+        tableName=list(stmts.keys())[0]
+        return (stmtsValues[::-1], tableName)
+
+    def get_cashFlowQ(self):
+        companyData=YahooFinancials(self.ticker)
+        stmts=companyData.get_financial_stmts('quarterly', 'cash')
+        stmtsValues=stmts[list(stmts.keys())[0]][self.ticker]
+        tableName=list(stmts.keys())[0]
+        return (stmtsValues[::-1], tableName)
+
+#    def get_dividends(self):
+#        companyData=yf.Ticker(self.ticker)
+#        self.dividends=companyData.get_dividends()
+#        return self.dividends
+#
+#    def get_actions(self):
+#        companyData=yf.Ticker(self.ticker)
+#        self.actions=companyData.get_actions()
+#        return self.actions
+#
+#    def get_splits(self):
+#        companyData=yf.Ticker(self.ticker)
+#        self.splits=companyData.get_splits()
+#        return self.splits
+#
+#    def get_history(self):
+#        companyData=yf.Ticker(self.ticker)
+#        self.history=companyData.history()
+#        return self.history
+#
+#    def get_info(self):
+#        companyData=yf.Ticker(self.ticker)
+#        self.info=companyData.info
+#        return self.info
+#

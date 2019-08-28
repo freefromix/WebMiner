@@ -1,3 +1,0 @@
-yahoo-finance
-yfinance
-beautifulsoup4
