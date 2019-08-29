@@ -1,19 +1,10 @@
 from dailysentiment import DailySentiment
-import sqlite3
+from financialInfo import CompanyFinance
 import os
 import json
-from financialInfo import CompanyFinance
 
 
-def daylySentiment():
-    dailys = DailySentiment("db"+os.sep+"dailySentiment.db")
-    dailys.writePandasToDB('dailySentiment', dailys.getDailySentiment())
-    fullTable = dailys.readPandasFromDB('dailySentiment')
-    print(fullTable)
-    dailys.getDatesFromBegining('dailySentiment', dailys.getStartDate())
-
-
-def financialInfos():
+def getFinancialInfos():
     company = CompanyFinance("CVV.V")
 
     balanceSheet, tableName = company.get_balanceSheet()
@@ -30,12 +21,11 @@ def financialInfos():
     cashFlowQ, tableName = company.get_cashFlowQ()
     company.writeToTinyDb(tableName, cashFlowQ)
 
-def testIt():
-    from yahoofinancials import YahooFinancials
+def getDailySentiment():
+    tableName = "dailySentiment"
+    dailys = DailySentiment(tableName)
+    dailysentiment = dailys.getDailySentiment()
+    dailys.writeToTinyDb(tableName, dailysentiment)
 
-    companyData = YahooFinancials("CVV.V")
-    result = companyData.get_stock_price_data()
-    print(result)
-
-#financialInfos()
-testIt()
+getDailySentiment()
+getFinancialInfos()

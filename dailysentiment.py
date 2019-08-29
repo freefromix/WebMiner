@@ -1,30 +1,19 @@
-import sqlite3
-import requests
-import pandas as pd
-from datetime import date
-import re
-import os
 from bs4 import BeautifulSoup
-import pandas as pd
+from tinydb import TinyDB, Query
 from datetime import datetime
 from datetime import timedelta
+from datetime import date
+import pandas as pd
+import requests
+import re
+import os
+import json
 
 class DailySentiment:
 
-    def __init__(self, db):
+    def __init__(self, filename):
         self.startDate = date(2019, 8, 20)
-        self.db=db
-        self.conn = sqlite3.connect(db)
-        self.cur = self.conn.cursor()
-
-        page = requests.get("http://www.tag618.com/services")
-        soup = BeautifulSoup(page.content, 'html.parser')
-        self.dailyDate = self._scrapDailyDate(soup)
-        dailySentimentTmp = self._scrapTableDailySentiment(soup)
-        sLength = len(dailySentimentTmp[dailySentimentTmp.columns[0]])
-        columnToAdd = [self.dailyDate] * sLength
-        dailySentimentTmp['date'] = pd.Series(columnToAdd)
-        self.dailySentiment = dailySentimentTmp
+        self.filename = "db/"+filename+".json"
 
     def _scrapDailyDate(self, soup):
         dateSpanTag = soup.find('span', attrs={'style': 'font-size: 14px;'})
@@ -38,6 +27,7 @@ class DailySentiment:
         table_body = table.find('tbody')
         rows = table_body.find_all('tr')
         data = []
+
         for row in rows:
             cols = row.find_all('td')
             cols = [ele.text.strip() for ele in cols]
@@ -58,36 +48,52 @@ class DailySentiment:
         toConvert[cols] = toConvert[cols].apply(pd.to_numeric, errors='coerce')
         return toConvert
 
-    def readPandasFromDB(self, table):
-        table = pd.read_sql_query("select * from "+table+";", self.conn)
-        return table
+    def writeToTinyDb(self, tableName, newData):
+        db = TinyDB(self.filename)
+        table = db.table(tableName)
+        newData['date'] = '2019-08-29'
+        dataDate = newData['date']
+        result = table.search(Query().date == dataDate)
 
-    def writePandasToDB(self, table, dataFrame, create=False):
-        if create == True:
-            dataFrame.to_sql(table, con=self.conn,
-                             if_exists='replace', index=False)
+        if result == []:
+            print(dataDate + ' record does not exist into database. Writing it!')
+            table.insert(newData)
         else:
-            sameDateRows = pd.read_sql_query(
-                "select * from "+table+" WHERE date='"+dataFrame['date'][0].strftime('%Y-%m-%d')+"';", con=self.conn)
+            print(dataDate + ' exist into database')
 
-            if sameDateRows.empty:
-                print("Writing new rows to database")
-                dataFrame.to_sql(table, con=self.conn,
-                                 if_exists='append', index=False)
-            else:
-                print("Rows already exist in database")
-
-    def getDatesFromBegining(self, table, startDate):
-        dt = datetime.combine(startDate, datetime.min.time())
-        for i in range(100):
-            dt += timedelta(days=1)
-            print(dt.date())
+    def readFromTinyDb(self, tableName):
+        db = TinyDB(self.filename)
+        table = db.table(tableName)
+        return table.all()
 
     def getDailySentiment(self):
+        page = requests.get("http://www.tag618.com/services")
+        soup = BeautifulSoup(page.content, 'html.parser')
+
+        self.dailyDate = self._scrapDailyDate(soup)
+
+        dailySentimentPds = self._scrapTableDailySentiment(soup)
+
+        dailySentimentDictByInstrument = self._transformPandasToDict(
+            dailySentimentPds)
+
+        self.dailySentiment = self._addDateToDict(dailySentimentDictByInstrument)
+
         return self.dailySentiment
 
-    def getDailyDate(self):
-        return self.dailyDate
+    def _transformPandasToDict(self, dailySentimentPds):
+        dailySentimentDict = dailySentimentPds.to_dict(orient='records')
 
-    def getStartDate(self):
-        return self.startDate
+        dailySentimentDictByInstrument = {}
+        for record in dailySentimentDict:
+            instrument = record.pop('INSTRUMENT')
+            dailySentimentDictByInstrument[instrument] = record
+
+        return dailySentimentDictByInstrument
+
+    def _addDateToDict(self, dailySentimentDictByInstrument):
+        datedDailySentiment = {}
+        datedDailySentiment['date'] = self.dailyDate.isoformat() 
+
+        datedDailySentiment.update(dailySentimentDictByInstrument)
+        return datedDailySentiment

@@ -1,6 +1,6 @@
+from tinydb import TinyDB, Query
 from yahoofinancials import YahooFinancials
 import os
-from tinydb import TinyDB, Query
 import json
 
 
@@ -10,12 +10,12 @@ class CompanyFinance:
         self.ticker = ticker
 
     def writeToTinyDb(self, tableName, newData):
-        db=TinyDB('db/'+self.ticker+'.json')
-        table=db.table(tableName)
+        db = TinyDB('db/'+self.ticker+'.json')
+        table = db.table(tableName)
 
         for dataRecord in newData:
-            dataDate=list(dataRecord.keys())[0]
-            result=table.search(Query()[dataDate])
+            dataDate = dataRecord['date']
+            result = table.search(Query().date == dataDate)
 
             if result == []:
                 print(dataDate + ' record does not exist into database. Writing it!')
@@ -23,51 +23,68 @@ class CompanyFinance:
             else:
                 print(dataDate + ' exist into database')
 
-    def readFromTinyDb(self):
-        db=TinyDB('db/'+self.ticker+'.json')
-        return db.all()
+    def readFromTinyDb(self, tableName):
+        db = TinyDB('db/'+self.ticker+'.json')
+        table = db.table(tableName)
+        return table.all()
+
+    def _convert(self, stmtsValues):
+        allStmtsConverted = []
+        for stmtValue in stmtsValues:
+            convertedStmt = {}
+            date = list(stmtValue.keys())[0]
+            convertedStmt['date'] = date
+            convertedStmt.update(stmtValue[date])
+            allStmtsConverted.append(convertedStmt)
+        return allStmtsConverted
 
     def get_balanceSheet(self):
-        companyData=YahooFinancials(self.ticker)
-        stmts=companyData.get_financial_stmts('annual', 'balance')
-        stmtsValues=stmts[list(stmts.keys())[0]][self.ticker]
-        tableName=list(stmts.keys())[0]
-        return (stmtsValues[::-1], tableName)
+        companyData = YahooFinancials(self.ticker)
+        stmts = companyData.get_financial_stmts('annual', 'balance')
+        stmtsValues = stmts[list(stmts.keys())[0]][self.ticker]
+        tableName = list(stmts.keys())[0]
+        allStmtsConverted = self._convert(stmtsValues)
+        return (allStmtsConverted[::-1], tableName)
 
     def get_balanceSheetQ(self):
-        companyData=YahooFinancials(self.ticker)
-        stmts=companyData.get_financial_stmts('quarterly', 'balance')
-        stmtsValues=stmts[list(stmts.keys())[0]][self.ticker]
-        tableName=list(stmts.keys())[0]
-        return (stmtsValues[::-1], tableName)
+        companyData = YahooFinancials(self.ticker)
+        stmts = companyData.get_financial_stmts('quarterly', 'balance')
+        stmtsValues = stmts[list(stmts.keys())[0]][self.ticker]
+        tableName = list(stmts.keys())[0]
+        allStmtsConverted = self._convert(stmtsValues)
+        return (allStmtsConverted[::-1], tableName)
 
     def get_incomeStatement(self):
-        companyData=YahooFinancials(self.ticker)
-        stmts=companyData.get_financial_stmts('annual', 'income')
-        stmtsValues=stmts[list(stmts.keys())[0]][self.ticker]
-        tableName=list(stmts.keys())[0]
-        return (stmtsValues[::-1], tableName)
+        companyData = YahooFinancials(self.ticker)
+        stmts = companyData.get_financial_stmts('annual', 'income')
+        stmtsValues = stmts[list(stmts.keys())[0]][self.ticker]
+        tableName = list(stmts.keys())[0]
+        allStmtsConverted = self._convert(stmtsValues)
+        return (allStmtsConverted[::-1], tableName)
 
     def get_incomeStatementQ(self):
-        companyData=YahooFinancials(self.ticker)
-        stmts=companyData.get_financial_stmts('quarterly', 'income')
-        stmtsValues=stmts[list(stmts.keys())[0]][self.ticker]
-        tableName=list(stmts.keys())[0]
-        return (stmtsValues[::-1], tableName)
+        companyData = YahooFinancials(self.ticker)
+        stmts = companyData.get_financial_stmts('quarterly', 'income')
+        stmtsValues = stmts[list(stmts.keys())[0]][self.ticker]
+        tableName = list(stmts.keys())[0]
+        allStmtsConverted = self._convert(stmtsValues)
+        return (allStmtsConverted[::-1], tableName)
 
     def get_cashFlow(self):
-        companyData=YahooFinancials(self.ticker)
-        stmts=companyData.get_financial_stmts('annual', 'cash')
-        stmtsValues=stmts[list(stmts.keys())[0]][self.ticker]
-        tableName=list(stmts.keys())[0]
-        return (stmtsValues[::-1], tableName)
+        companyData = YahooFinancials(self.ticker)
+        stmts = companyData.get_financial_stmts('annual', 'cash')
+        stmtsValues = stmts[list(stmts.keys())[0]][self.ticker]
+        tableName = list(stmts.keys())[0]
+        allStmtsConverted = self._convert(stmtsValues)
+        return (allStmtsConverted[::-1], tableName)
 
     def get_cashFlowQ(self):
-        companyData=YahooFinancials(self.ticker)
-        stmts=companyData.get_financial_stmts('quarterly', 'cash')
-        stmtsValues=stmts[list(stmts.keys())[0]][self.ticker]
-        tableName=list(stmts.keys())[0]
-        return (stmtsValues[::-1], tableName)
+        companyData = YahooFinancials(self.ticker)
+        stmts = companyData.get_financial_stmts('quarterly', 'cash')
+        stmtsValues = stmts[list(stmts.keys())[0]][self.ticker]
+        tableName = list(stmts.keys())[0]
+        allStmtsConverted = self._convert(stmtsValues)
+        return (allStmtsConverted[::-1], tableName)
 
 #    def get_dividends(self):
 #        companyData=yf.Ticker(self.ticker)
