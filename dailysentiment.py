@@ -19,8 +19,17 @@ class DailySentiment:
         dateSpanTag = soup.find('span', attrs={'style': 'font-size: 14px;'})
         text = dateSpanTag.find('b').text
         numbers = re.findall(r'\d+', text)
-        dayOfDsi = date.today().replace(day=int(numbers[0]))
-        return dayOfDsi
+
+        dayOfDsi = int(numbers[0])
+        dayToday = int(date.today().day)
+        dateOfDsi = date.today().replace(day=int(numbers[0]))
+
+        if dayToday >= dayOfDsi:
+            dateOfDsi = date.today().replace(day=dayOfDsi)
+        else:
+            dateOfDsi = date.today().replace(month=int(date.today().month)-1, day=dayOfDsi)
+
+        return dateOfDsi
 
     def _scrapTableDailySentiment(self, soup):
         table = soup.find('table')
@@ -51,7 +60,7 @@ class DailySentiment:
     def writeToTinyDb(self, tableName, newData):
         db = TinyDB(self.filename)
         table = db.table(tableName)
-        newData['date'] = '2019-08-29'
+
         dataDate = newData['date']
         result = table.search(Query().date == dataDate)
 

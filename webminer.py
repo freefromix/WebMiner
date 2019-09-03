@@ -27,5 +27,7 @@ def getDailySentiment():
     dailysentiment = dailys.getDailySentiment()
     dailys.writeToTinyDb(tableName, dailysentiment)
 
+print("Daily sentiment")
 getDailySentiment()
-getFinancialInfos()
+# print("Financial infos")
+# getFinancialInfos()
